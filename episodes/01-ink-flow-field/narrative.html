@@ -65,6 +65,9 @@
     <div class="grp">
       <label class="toggle"><input type="checkbox" id="auto" checked onchange="P.auto=this.checked"> 自动循环（墨林→成诗→风→下一首）</label>
     </div>
+    <div class="grp">
+      <label class="toggle"><input type="checkbox" id="audioChk" checked onchange="toggleAudio()"> 🔊 生成式声音（成诗一声磬 + 起风风声 · 录屏一起录）</label>
+    </div>
 
     <div class="grp">
       <label>诗停留 Hold<span class="v" id="lab-grow">3.5s</span></label>
@@ -465,6 +468,8 @@ function draw(){
 
   if(phase!=='wind' && P.auto && t>HOLD_END && !gust.active) startGust(true);
   if(!gust.active) phase = t<DRIFT_MS ? 'drift' : (t<GATHER_END ? 'gather' : 'hold');
+  if(phase==='hold' && prevPhase!=='hold' && !gust.active) playChime(PENTA[verse%PENTA.length]);  // 成诗：一声磬
+  prevPhase=phase;
 
   image(bg,0,0);                        // 背景层：纸 / 远山 / 月 / 字帘 / 暗角
   if(bgCrossT>=0){                       // 换首：旧背景淡出、新背景淡入（弱化断点）
@@ -479,6 +484,8 @@ function draw(){
 
   let windProg=0;
   if(gust.active){ windProg=(now-gust.t0)/WIND_MS; gust.x += gust.dir*(W+220)/(WIND_MS/16.7); }
+  if(windGain && audioCtx){ const env=gust.active?Math.sin(Math.min(windProg,1)*Math.PI):0;   // 起风：风声随扫过起伏
+    windGain.gain.setTargetAtTime(0.05*env, audioCtx.currentTime, 0.12); }
 
   // 归位权重 hw：0 = 墨林(散) → 1 = 诗(聚)，平滑无缝
   let hw;
@@ -590,6 +597,47 @@ function mouseDragged(){
 function lab(k,txt){ document.getElementById('lab-'+k).textContent=txt; }
 function rollSeed(){ P.seed=Math.floor(Math.random()*99999); const el=document.getElementById('seedInput'); if(el) el.value=P.seed; }  // 每首诗随机一颗种子
 
+/* ---- 生成式声音（Web Audio）---- */
+let audioCtx=null, masterGain, streamDest, windGain, audioMuted=false, prevPhase='drift';
+const PENTA=[261.63,293.66,329.63,392.0,440.0,523.25,587.33];  // 五声：宫商角徵羽…一首一音
+function ensureAudio(){
+  if(audioMuted) return;
+  if(!audioCtx){
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    audioCtx=new AC();
+    masterGain=audioCtx.createGain(); masterGain.gain.value=0.9; masterGain.connect(audioCtx.destination);
+    streamDest=audioCtx.createMediaStreamDestination(); masterGain.connect(streamDest);   // 供录屏
+    // 环境嗡鸣：低频泛音垫底
+    const dg=audioCtx.createGain(); dg.gain.value=0.014; dg.connect(masterGain);
+    const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=380; lp.connect(dg);
+    [55,82.4,110].forEach((f,i)=>{ const o=audioCtx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const g=audioCtx.createGain(); g.gain.value=(i===0?1:0.45); o.connect(g); g.connect(lp); o.start(); });
+    // 风：带通白噪声，随起风起伏
+    const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*2,audioCtx.sampleRate);
+    const d=buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const ns=audioCtx.createBufferSource(); ns.buffer=buf; ns.loop=true;
+    const bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=650; bp.Q.value=0.6;
+    windGain=audioCtx.createGain(); windGain.gain.value=0;
+    ns.connect(bp); bp.connect(windGain); windGain.connect(masterGain); ns.start();
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}
+function playChime(freq){                       // 成诗：磬/古琴，一声清音（基频+泛音，快起慢落）
+  if(!audioCtx || audioMuted) return;
+  const t=audioCtx.currentTime;
+  [[freq,1.0],[freq*2,0.4],[freq*3,0.16]].forEach(([f,a])=>{
+    const o=audioCtx.createOscillator(); o.type='sine'; o.frequency.value=f;
+    const g=audioCtx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.16*a, t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0008, t+2.6);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t+2.8);
+  });
+}
+function toggleAudio(){
+  audioMuted=!document.getElementById('audioChk').checked;
+  if(audioMuted){ if(audioCtx) audioCtx.suspend(); } else { ensureAudio(); }
+}
+
 /* ---- 录屏：把画布录成 webm ---- */
 let mediaRec=null, recChunks=[], recSeed=0, recRoundsLeft=0;
 function resetRecBtns(){
@@ -600,8 +648,10 @@ function startRec(btn, stopLabel){
   const cv=document.querySelector('#stage canvas');
   if(!cv || !cv.captureStream || typeof MediaRecorder==='undefined'){ alert('当前浏览器不支持录屏，请用 Chrome/Edge。'); return false; }
   const stream=cv.captureStream(60);
-  let mime='video/webm;codecs=vp9';
-  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
+  ensureAudio();                                  // 把声音一起录进去
+  try{ if(streamDest){ const at=streamDest.stream.getAudioTracks()[0]; if(at) stream.addTrack(at); } }catch(e){}
+  let mime='video/webm;codecs=vp9,opus';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8,opus';
   if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
   recChunks=[]; recSeed=P.seed;
   mediaRec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:16000000});
@@ -646,6 +696,7 @@ window.addEventListener('resize',()=>{
   tbuf=createGraphics(W,H); tbuf.pixelDensity(1);
   particles=[]; startVerse(verse, true);
 });
+window.addEventListener('pointerdown', ()=>{ if(!audioMuted) ensureAudio(); }, {passive:true});  // 首次交互即启声
 </script>
 </body>
 </html>
