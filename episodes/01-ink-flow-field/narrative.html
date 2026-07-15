@@ -166,6 +166,7 @@ function setup(){
   bgPrev = createGraphics(W,H);
   ink = createGraphics(W,H); ink.strokeCap(ROUND);
   tbuf = createGraphics(W,H); tbuf.pixelDensity(1);
+  rollSeed();                    // 首屏也随机一颗
   startVerse(0, true);
 }
 
@@ -518,7 +519,7 @@ function draw(){
 
   // 风扫完 → 换季、回到墨林(drift)
   if(gust.active && gust.full && (gust.dir>0 ? gust.x>W+120 : gust.x<-120)){
-    gust.active=false; startVerse((verse+1)%POEMS.length, false);
+    gust.active=false; rollSeed(); startVerse((verse+1)%POEMS.length, false);
   } else if(gust.active && !gust.full && windProg>1){
     gust.active=false;
   }
@@ -566,8 +567,9 @@ function mouseDragged(){
 
 /* ---------------- UI ---------------- */
 function lab(k,txt){ document.getElementById('lab-'+k).textContent=txt; }
+function rollSeed(){ P.seed=Math.floor(Math.random()*99999); const el=document.getElementById('seedInput'); if(el) el.value=P.seed; }  // 每首诗随机一颗种子
 function gustNow(){ startGust(true); }
-function forceNext(){ startVerse((verse+1)%POEMS.length, false); }
+function forceNext(){ rollSeed(); startVerse((verse+1)%POEMS.length, false); }
 function stepSeed(d){ P.seed=Math.max(0,P.seed+d); seedInput.value=P.seed; restart(); }
 function jumpSeed(v){ P.seed=Math.max(0,parseInt(v)||0); restart(); }
 function restart(){ particles=[]; startVerse(0, true); }
