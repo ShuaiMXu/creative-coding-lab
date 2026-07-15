@@ -191,7 +191,7 @@ function buildHomes(){
   const lines=pal.lines, rows=5, cols=lines.length;   // 4 列 × 5 字
   const S=Math.min(W,H);
   const cs=Math.floor(S*0.116);
-  g.font = cs+'px '+POEM_FONT;
+  g.font = 'bold '+cs+'px '+POEM_FONT;   // 粗体字形 → 笔画更粗，字重更重
   const colGap=S*0.156, rowGap=cs*1.16;
   const cx0=W*0.5 + colGap*(cols-1)/2;            // 最右列起（竖排右起）
   const cy0=H*0.5 - rowGap*(rows-1)/2;
@@ -526,7 +526,7 @@ function draw(){
     if(random() < p.dry*(1-hw*0.92)) continue;      // 飞白（成诗时几乎不断，字更密实）
     const grown=constrain(p.age/16,0,1);
     // 写意→清晰：墨林粗湿浓淡，成诗填实更密
-    const wgt = p.fw*(0.6+grown*1.0)*(1-hw) + (1.8+p.ink*0.85)*hw;   // 诗成：笔画填实、更密（仍留轻重）
+    const wgt = p.fw*(0.6+grown*1.0)*(1-hw) + (2.2+p.ink*0.9)*hw;    // 诗成：笔画填实、更粗（仍留轻重）
     const a   = (18*p.ink*grown)*(1-hw) + 205*hw*(0.5+0.5*hw);
     if(p.wet && hw<0.4 && p.age>8 && random()<0.18){                     // 湿墨只在墨林期洇
       ink.noStroke(); ink.fill(ir,ig,ib, 18*p.ink*0.22*(1-hw)); ink.circle(p.x,p.y, p.fw*(2.0+grown*2.4));
