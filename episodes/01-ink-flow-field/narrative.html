@@ -452,7 +452,7 @@ function startGust(full){
   gust.active=true; gust.full=full; gust.t0=millis();
   gust.dir = random()<0.5 ? 1 : -1;
   gust.x = gust.dir>0 ? -80 : W+80;
-  if(full) phase='wind';
+  if(full){ phase='wind'; playBowl(146.83); }   // 转：一声钵
 }
 function windAt(x){
   const sigma=W*0.16, d=(x-gust.x)/sigma;
@@ -487,6 +487,7 @@ function draw(){
   if(gust.active){ windProg=(now-gust.t0)/WIND_MS; gust.x += gust.dir*(W+220)/(WIND_MS/16.7); }
   if(windGain && audioCtx){ const env=gust.active?Math.sin(Math.min(windProg,1)*Math.PI):0;   // 起风：风声随扫过起伏
     windGain.gain.setTargetAtTime(0.05*env, audioCtx.currentTime, 0.12); }
+  if(rainGain && audioCtx){ rainGain.gain.setTargetAtTime(pal.scene==='rain'?0.045:0, audioCtx.currentTime, 0.5); }  // 春曉：春雨
 
   // 归位权重 hw：0 = 墨林(散) → 1 = 诗(聚)，平滑无缝
   let hw;
@@ -599,7 +600,7 @@ function lab(k,txt){ document.getElementById('lab-'+k).textContent=txt; }
 function rollSeed(){ P.seed=Math.floor(Math.random()*99999); const el=document.getElementById('seedInput'); if(el) el.value=P.seed; }  // 每首诗随机一颗种子
 
 /* ---- 生成式声音（Web Audio）---- */
-let audioCtx=null, masterGain, streamDest, windGain, audioMuted=false, prevPhase='drift';
+let audioCtx=null, masterGain, streamDest, windGain, rainGain, audioMuted=false, prevPhase='drift';
 function ensureAudio(){
   if(audioMuted) return;
   if(!audioCtx){
@@ -619,6 +620,11 @@ function ensureAudio(){
     const bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=650; bp.Q.value=0.6;
     windGain=audioCtx.createGain(); windGain.gain.value=0;
     ns.connect(bp); bp.connect(windGain); windGain.connect(masterGain); ns.start();
+    // 雨：高通白噪声（春曉场景的春雨）
+    const rns=audioCtx.createBufferSource(); rns.buffer=buf; rns.loop=true;
+    const rhp=audioCtx.createBiquadFilter(); rhp.type='highpass'; rhp.frequency.value=1600;
+    rainGain=audioCtx.createGain(); rainGain.gain.value=0;
+    rns.connect(rhp); rhp.connect(rainGain); rainGain.connect(masterGain); rns.start();
   }
   if(audioCtx.state==='suspended') audioCtx.resume();
 }
@@ -662,6 +668,18 @@ function startGatherPhrase(){                    // 承：按当前诗的乐句�
   if(!audioCtx || audioMuted) return;
   const m=MOTIFS[verse%MOTIFS.length];
   m.seq.forEach(([idx,t,amp])=> playPluck(SCALE[idx], t, amp));
+}
+function playBowl(freq){                         // 转（起风）：一声颂钵，基频+微失谐拍频+长余韵
+  if(!audioCtx || audioMuted) return;
+  const t=audioCtx.currentTime;
+  [[freq,1.0,0],[freq*1.007,0.9,0],[freq*2.76,0.22,0.015],[freq*5.18,0.08,0.04]].forEach(([f,a,dly])=>{
+    const o=audioCtx.createOscillator(); o.type='sine'; o.frequency.value=f;
+    const g=audioCtx.createGain(); const t0=t+dly;
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.linearRampToValueAtTime(0.11*a, t0+0.04);
+    g.gain.exponentialRampToValueAtTime(0.0006, t0+4.8);
+    o.connect(g); g.connect(masterGain); o.start(t0); o.stop(t0+5.0);
+  });
 }
 function toggleAudio(){
   audioMuted=!document.getElementById('audioChk').checked;
