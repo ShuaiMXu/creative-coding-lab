@@ -102,6 +102,9 @@
         <button id="recBtn" onclick="toggleRec()">⏺ 录屏</button>
         <button id="recRoundBtn" onclick="recRound()">⏱ 录一轮</button>
       </div>
+      <div class="row" style="margin-top:6px">
+        <button id="recAllBtn" onclick="recAll()" style="flex:1">🎬 录全部 7 首（长版 · 约 90 秒）</button>
+      </div>
     </div>
 
     <p class="hint">墨 · 先散作<strong>墨林</strong>，随气韵游走（浓淡枯湿的写意）→ 成 · 满纸墨迹<strong>聚拢归位</strong>，整首《鹿柴》渐渐清晰 → 驻 · 诗成，清晰凝驻 → 风 · 一阵风<strong>吹散</strong>回墨林，季相流转，再聚成诗。<br>🖱️ 在画面上<strong>拖动</strong>＝拨墨，把那一片墨搅散。<br>⏺ <strong>录屏</strong>＝把画布录成 .webm 视频（可用剪辑软件 / ffmpeg 转 mp4）；想要竖屏就把浏览器窗口调窄再录。</p>
@@ -526,10 +529,15 @@ function draw(){
   // 风扫完 → 换季、回到墨林(drift)
   if(gust.active && gust.full && (gust.dir>0 ? gust.x>W+120 : gust.x<-120)){
     gust.active=false;
-    if(recAutoRound){                     // 录一轮：这一首风扫完 → 稍留一点次首起势后自动停
-      recAutoRound=false; const mr=mediaRec;
-      startVerse((verse+1)%POEMS.length, false);
-      setTimeout(()=>{ if(mr && mr.state==='recording') mr.stop(); }, 320);
+    if(recRoundsLeft>0){                   // 录制中：这一首风扫完 → 计数
+      recRoundsLeft--;
+      if(recRoundsLeft<=0){                // 录够了 → 稍留一点次首起势后自动停
+        const mr=mediaRec;
+        startVerse((verse+1)%POEMS.length, false);
+        setTimeout(()=>{ if(mr && mr.state==='recording') mr.stop(); }, 320);
+      } else {
+        rollSeed(); startVerse((verse+1)%POEMS.length, false);   // 继续录下一首（换新种子）
+      }
     } else {
       rollSeed(); startVerse((verse+1)%POEMS.length, false);
     }
@@ -583,11 +591,10 @@ function lab(k,txt){ document.getElementById('lab-'+k).textContent=txt; }
 function rollSeed(){ P.seed=Math.floor(Math.random()*99999); const el=document.getElementById('seedInput'); if(el) el.value=P.seed; }  // 每首诗随机一颗种子
 
 /* ---- 录屏：把画布录成 webm ---- */
-let mediaRec=null, recChunks=[], recSeed=0, recAutoRound=false;
+let mediaRec=null, recChunks=[], recSeed=0, recRoundsLeft=0;
 function resetRecBtns(){
-  const b1=document.getElementById('recBtn'), b2=document.getElementById('recRoundBtn');
-  b1.textContent='⏺ 录屏'; b2.textContent='⏱ 录一轮';
-  b1.style.background=b1.style.color=b2.style.background=b2.style.color='';
+  const ids=[['recBtn','⏺ 录屏'],['recRoundBtn','⏱ 录一轮'],['recAllBtn','🎬 录全部 7 首（长版 · 约 90 秒）']];
+  for(const [id,txt] of ids){ const b=document.getElementById(id); if(b){ b.textContent=txt; b.style.background=''; b.style.color=''; } }
 }
 function startRec(btn, stopLabel){
   const cv=document.querySelector('#stage canvas');
@@ -600,7 +607,7 @@ function startRec(btn, stopLabel){
   mediaRec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:16000000});
   mediaRec.ondataavailable=e=>{ if(e.data && e.data.size>0) recChunks.push(e.data); };
   mediaRec.onstop=()=>{
-    recAutoRound=false;
+    recRoundsLeft=0;
     const blob=new Blob(recChunks,{type:'video/webm'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download='ink-poem-'+recSeed+'.webm'; a.click();
@@ -615,12 +622,14 @@ function toggleRec(){                          // 自由录：手动起停
   if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
   startRec(document.getElementById('recBtn'), '■ 停止并保存');
 }
-function recRound(){                           // 录一轮：从头起录，风扫完自动停
+function recRounds(n, btnId, stopLabel){       // 录 n 首后自动停
   if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
   P.auto=true; document.getElementById('auto').checked=true;
   rollSeed(); particles=[]; startVerse(verse, true);   // 从这一首的墨林干净开始
-  if(startRec(document.getElementById('recRoundBtn'), '● 录制中…自动停')) recAutoRound=true;
+  if(startRec(document.getElementById(btnId), stopLabel)) recRoundsLeft=n;
 }
+function recRound(){ recRounds(1, 'recRoundBtn', '● 录制中…自动停'); }               // 一轮（一首）
+function recAll(){ recRounds(POEMS.length, 'recAllBtn', '● 录全部 7 首…自动停'); }   // 全部 7 首
 function gustNow(){ startGust(true); }
 function forceNext(){ rollSeed(); startVerse((verse+1)%POEMS.length, false); }
 function stepSeed(d){ P.seed=Math.max(0,P.seed+d); seedInput.value=P.seed; restart(); }
