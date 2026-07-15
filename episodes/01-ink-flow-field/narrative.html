@@ -66,12 +66,12 @@
       <label class="toggle"><input type="checkbox" id="auto" checked onchange="P.auto=this.checked"> 自动循环（墨林→成诗→风→下一首）</label>
     </div>
     <div class="grp">
-      <label class="toggle"><input type="checkbox" id="audioChk" checked onchange="toggleAudio()"> 🔊 生成式声音（成诗一声磬 + 起风风声 · 录屏一起录）</label>
+      <label class="toggle"><input type="checkbox" id="audioChk" checked onchange="toggleAudio()"> 🔊 音效（磬 / 钵 / 风 / 雨 · 无背景乐,方便配自己的曲 · 录屏一起录）</label>
     </div>
 
     <div class="grp">
-      <label>诗停留 Hold<span class="v" id="lab-grow">1.3s</span></label>
-      <input type="range" min="0.8" max="10" step="0.1" value="1.3" oninput="P.growSecs=+this.value;lab('grow',this.value+'s')">
+      <label>诗停留 Hold<span class="v" id="lab-grow">1.9s</span></label>
+      <input type="range" min="0.8" max="10" step="0.1" value="1.9" oninput="P.growSecs=+this.value;lab('grow',this.value+'s')">
     </div>
     <div class="grp">
       <label>墨点数 Ink dots<span class="v" id="lab-dens">6000</span></label>
@@ -139,17 +139,17 @@ const POEMS = [
 const P = {
   seed: 1024,
   auto: true,
-  growSecs: 1.3,   // 诗停留时长（紧凑：一轮约 40s）
+  growSecs: 1.9,   // 诗停留时长（一轮约 50s）
   dots: 6000,      // 墨点数（整首诗需要更多，成诗更密实）
   turb: 2.4,       // 气韵
   wind: 3.0,       // 风力
 };
 
-const DRIFT_MS  = 1800;   // 墨：先散作林，随气韵游走（写意）
-const GATHER_MS = 1600;   // 成：墨聚拢归位，诗渐清晰
-const WIND_MS   = 1000;   // 风：吹散回墨林
+const DRIFT_MS  = 2200;   // 墨：先散作林，随气韵游走（写意）
+const GATHER_MS = 1900;   // 成：墨聚拢归位，诗渐清晰
+const WIND_MS   = 1200;   // 风：吹散回墨林
 const SPEED     = 1.15;   // 林中墨迹上行速度
-// 一轮约 5.7s（DRIFT+GATHER+HOLD+WIND），七首 ≈ 40s
+// 一轮约 7.2s（DRIFT+GATHER+HOLD+WIND），七首 ≈ 50s
 const POEM_FONT = '"Songti SC","Noto Serif SC","STSong",serif';
 
 let W, H;
@@ -469,8 +469,7 @@ function draw(){
 
   if(phase!=='wind' && P.auto && t>HOLD_END && !gust.active) startGust(true);
   if(!gust.active) phase = t<DRIFT_MS ? 'drift' : (t<GATHER_END ? 'gather' : 'hold');
-  if(phase==='gather' && prevPhase!=='gather' && !gust.active) startGatherPhrase();               // 承：聚拢拨弦铺垫
-  if(phase==='hold' && prevPhase!=='hold' && !gust.active) playChime(SCALE[MOTIFS[verse%MOTIFS.length].chime]);  // 成诗：乐句收在这个音
+  if(phase==='hold' && prevPhase!=='hold' && !gust.active) playChime(SCALE[MOTIFS[verse%MOTIFS.length].chime]);  // 成诗：一声磬（音效）
   prevPhase=phase;
 
   image(bg,0,0);                        // 背景层：纸 / 远山 / 月 / 字帘 / 暗角
@@ -609,11 +608,6 @@ function ensureAudio(){
     audioCtx=new AC();
     masterGain=audioCtx.createGain(); masterGain.gain.value=0.9; masterGain.connect(audioCtx.destination);
     streamDest=audioCtx.createMediaStreamDestination(); masterGain.connect(streamDest);   // 供录屏
-    // 环境嗡鸣：低频泛音垫底
-    const dg=audioCtx.createGain(); dg.gain.value=0.014; dg.connect(masterGain);
-    const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=380; lp.connect(dg);
-    [55,82.4,110].forEach((f,i)=>{ const o=audioCtx.createOscillator(); o.type='sine'; o.frequency.value=f;
-      const g=audioCtx.createGain(); g.gain.value=(i===0?1:0.45); o.connect(g); g.connect(lp); o.start(); });
     // 风：带通白噪声，随起风起伏
     const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*2,audioCtx.sampleRate);
     const d=buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
@@ -652,24 +646,6 @@ const MOTIFS=[
   { seq:[[2,0.15,0.66],[3,0.55,0.70],[5,0.95,0.74],[6,1.35,0.80],[7,1.75,0.84],[10,2.15,0.90]], chime:11 }, // 登鸛雀樓 攀升·开阔
   { seq:[[5,0.20,0.60],[7,0.55,0.62],[6,0.90,0.60],[8,1.30,0.64],[7,1.70,0.58]], chime:7 },         // 春曉 春晨啁啾·柔
 ];
-function playPluck(freq, tOff, amp){             // 古琴拨弦：三角波 + 泛音，轻起快落
-  if(!audioCtx || audioMuted) return;
-  const t=audioCtx.currentTime+tOff;
-  const o=audioCtx.createOscillator(); o.type='triangle'; o.frequency.value=freq;
-  const o2=audioCtx.createOscillator(); o2.type='sine'; o2.frequency.value=freq*2;
-  const g2=audioCtx.createGain(); g2.gain.value=0.28; o2.connect(g2);
-  const g=audioCtx.createGain(); g.gain.setValueAtTime(0.0001,t);
-  g.gain.linearRampToValueAtTime(0.085*amp, t+0.006);
-  g.gain.exponentialRampToValueAtTime(0.0006, t+1.05);
-  const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1900;
-  o.connect(g); g2.connect(g); g.connect(lp); lp.connect(masterGain);
-  o.start(t); o.stop(t+1.2); o2.start(t); o2.stop(t+1.2);
-}
-function startGatherPhrase(){                    // 承：按当前诗的乐句拨弦，铺垫成诗
-  if(!audioCtx || audioMuted) return;
-  const m=MOTIFS[verse%MOTIFS.length], ts=0.64;   // 压缩乐句时值，收在更短的 gather 内
-  m.seq.forEach(([idx,t,amp])=> playPluck(SCALE[idx], t*ts, amp));
-}
 function playBowl(freq){                         // 转（起风）：一声颂钵，基频+微失谐拍频+长余韵
   if(!audioCtx || audioMuted) return;
   const t=audioCtx.currentTime;
