@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>墨林 · 叙事版 — 字聚成诗 / 消散成林 / 一阵风</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>window.p5||document.write('<script src="../../vendor/p5.min.js"><\/script>')</script>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;font-family:"Noto Serif SC","Songti SC",serif;background:#17150f;color:#e8e2d4;}
+  #app{display:flex;height:100%;min-height:100vh;}
+  #stage{flex:1;position:relative;overflow:hidden;}
+  #stage canvas{display:block;}
+  #panel{width:300px;flex:none;background:#211f19;border-left:1px solid #3a382f;padding:22px 20px;overflow-y:auto;}
+  #panel h1{font-size:19px;margin:0 0 2px;letter-spacing:2px;}
+  #panel .sub{font-size:12px;color:#9c9a8a;margin:0 0 16px;letter-spacing:1px;}
+  .verse{background:#1a1813;border:1px solid #38352b;border-radius:8px;padding:14px 16px;margin-bottom:18px;}
+  .verse .line{font-size:26px;letter-spacing:6px;color:#efe7d5;}
+  .verse .meta{font-size:12px;color:#c9975a;margin-top:6px;letter-spacing:1px;}
+  .verse .prog{height:3px;background:#332f26;border-radius:2px;margin-top:12px;overflow:hidden;}
+  .verse .prog i{display:block;height:100%;width:0;background:#c9975a;transition:width .1s linear;}
+  .grp{margin-bottom:16px;}
+  .grp label{display:flex;justify-content:space-between;font-size:12px;color:#c7c0ad;margin-bottom:6px;letter-spacing:.5px;}
+  .grp label .v{color:#c9975a;font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%;accent-color:#c9975a;background:transparent;}
+  .seed{display:flex;gap:6px;align-items:center;}
+  .seed input[type=number]{flex:1;background:#1b1a15;border:1px solid #3a382f;color:#e8e2d4;padding:6px 8px;border-radius:4px;font-family:inherit;}
+  button{background:#33322a;border:1px solid #46443a;color:#e8e2d4;padding:8px 10px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:13px;transition:.15s;}
+  button:hover{background:#413f34;border-color:#5a5748;}
+  button.primary{background:#8a5a2b;border-color:#a06a33;color:#fff;}
+  button.primary:hover{background:#9a6531;}
+  button.wind{background:#3a4a52;border-color:#4c626c;}
+  button.wind:hover{background:#465963;}
+  .row{display:flex;gap:6px;}
+  .row button{flex:1;}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:#c7c0ad;cursor:pointer;user-select:none;}
+  .toggle input{accent-color:#c9975a;width:15px;height:15px;}
+  .hint{font-size:11px;line-height:1.7;color:#8a877a;margin-top:14px;border-top:1px solid #34332b;padding-top:12px;}
+  .credit{font-size:10px;color:#6a6858;margin-top:14px;letter-spacing:.5px;}
+  a{color:#c9975a;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div id="panel">
+    <h1>墨林 · 叙事版</h1>
+    <p class="sub">Creative Coding Lab #01b — 墨林 · 成诗 · 风更新</p>
+    <p style="margin:-4px 0 14px;font-size:12px;letter-spacing:.5px;"><a href="index.html">← 静态版 · 水墨流场</a></p>
+
+    <div class="verse">
+      <div class="line" id="v-line">空山不见人</div>
+      <div class="meta" id="v-season">春 · 王维《鹿柴》一 / 四</div>
+      <div class="prog"><i id="v-prog"></i></div>
+    </div>
+
+    <div class="grp">
+      <div class="row">
+        <button class="wind" onclick="gustNow()">🌬 起风</button>
+        <button onclick="forceNext()">↦ 下一句</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="toggle"><input type="checkbox" id="auto" checked onchange="P.auto=this.checked"> 自动循环（墨林→成诗→风→下一首）</label>
+    </div>
+
+    <div class="grp">
+      <label>诗停留 Hold<span class="v" id="lab-grow">3.5s</span></label>
+      <input type="range" min="1.5" max="12" step="0.5" value="3.5" oninput="P.growSecs=+this.value;lab('grow',this.value+'s')">
+    </div>
+    <div class="grp">
+      <label>墨点数 Ink dots<span class="v" id="lab-dens">4500</span></label>
+      <input type="range" min="2000" max="7000" step="100" value="4500" oninput="P.dots=+this.value;lab('dens',this.value);restart()">
+    </div>
+    <div class="grp">
+      <label>气韵 Turbulence<span class="v" id="lab-turb">2.4</span></label>
+      <input type="range" min="10" max="45" step="1" value="24" oninput="P.turb=+this.value/10;lab('turb',(this.value/10).toFixed(1))">
+    </div>
+    <div class="grp">
+      <label>风力 Wind<span class="v" id="lab-wind">3.0</span></label>
+      <input type="range" min="10" max="70" step="1" value="30" oninput="P.wind=+this.value/10;lab('wind',(this.value/10).toFixed(1))">
+    </div>
+
+    <div class="grp">
+      <label>随机种子 Seed</label>
+      <div class="seed">
+        <button onclick="stepSeed(-1)">‹</button>
+        <input type="number" id="seedInput" value="1024" onchange="jumpSeed(this.value)">
+        <button onclick="stepSeed(1)">›</button>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="row">
+        <button class="primary" onclick="restart()">↻ 重新开始</button>
+        <button onclick="savePNG()">⤓ 存图</button>
+      </div>
+    </div>
+
+    <p class="hint">墨 · 先散作<strong>墨林</strong>，随气韵游走（浓淡枯湿的写意）→ 成 · 满纸墨迹<strong>聚拢归位</strong>，整首《鹿柴》渐渐清晰 → 驻 · 诗成，清晰凝驻 → 风 · 一阵风<strong>吹散</strong>回墨林，季相流转，再聚成诗。<br>🖱️ 在画面上<strong>拖动</strong>＝拨墨，把那一片墨搅散。</p>
+    <p class="credit">© Creative Coding Lab · p5.js · 同一堆墨 · 聚成字 · 散成林</p>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   墨林 · 叙事版 Ink Forest — Narrative
+   同一堆墨的一生：聚成字（起）→ 脱离字形、消散成林（承）
+   → 一阵风吹散成飞墨（转）→ 墨灰重聚成下一句（合）。
+   王维《鹿柴》四句，一句一季，四季一轮回。
+   每个粒子都有一个"归位点"＝诗句笔画的像素；先飞入聚成字，
+   再逐点脱离、顺气韵上行留下墨迹成林。字不是背景，是材料本身。
+   ============================================================ */
+
+// 四首五言绝句（繁体·古风），一首一景，轮换。墨聚成诗 → 风散回墨 → 换下一首。
+const POEMS = [
+  { title:'鹿柴',   author:'王維',   lines:['空山不見人','但聞人語響','返景入深林','復照青苔上'], bg:'#edf0e7', ink:'#22362a', warm:1, birds:1, seal:'空山', scene:'forest' },
+  { title:'竹里館', author:'王維',   lines:['獨坐幽篁裏','彈琴復長嘯','深林人不知','明月來相照'], bg:'#e6ecde', ink:'#17231a', warm:0, birds:2, seal:'幽篁', scene:'bamboo' },
+  { title:'江雪',   author:'柳宗元', lines:['千山鳥飛絕','萬徑人蹤滅','孤舟簑笠翁','獨釣寒江雪'], bg:'#e8ebed', ink:'#161a1e', warm:0, birds:0, seal:'寒江', scene:'snow' },
+  { title:'鳥鳴澗', author:'王維',   lines:['人閒桂花落','夜靜春山空','月出驚山鳥','時鳴春澗中'], bg:'#f1e7d2', ink:'#3a2a18', warm:1, birds:3, seal:'春山', scene:'petals' },
+  { title:'靜夜思', author:'李白',   lines:['床前明月光','疑是地上霜','舉頭望明月','低頭思故鄉'], bg:'#e9edf0', ink:'#182028', warm:0, birds:0, seal:'明月', scene:'frost' },
+  { title:'登鸛雀樓', author:'王之渙', lines:['白日依山盡','黃河入海流','欲窮千里目','更上一層樓'], bg:'#f2e6cc', ink:'#3a2814', warm:1, birds:1, seal:'千里', scene:'sunset' },
+  { title:'春曉',   author:'孟浩然', lines:['春眠不覺曉','處處聞啼鳥','夜來風雨聲','花落知多少'], bg:'#e8ecdf', ink:'#20301f', warm:0, birds:3, seal:'春曉', scene:'rain' },
+];
+
+const P = {
+  seed: 1024,
+  auto: true,
+  growSecs: 3.5,   // 诗停留时长（自动循环下不宜太久）
+  dots: 4500,      // 墨点数（整首诗需要更多，成诗更密）
+  turb: 2.4,       // 气韵
+  wind: 3.0,       // 风力
+};
+
+const DRIFT_MS  = 3400;   // 墨：先散作林，随气韵游走（写意）
+const GATHER_MS = 2600;   // 成：墨聚拢归位，诗渐清晰
+const WIND_MS   = 2600;   // 风：吹散回墨林
+const SPEED     = 1.15;   // 林中墨迹上行速度
+const POEM_FONT = '"Songti SC","Noto Serif SC","STSong",serif';
+
+let W, H;
+let bg;                   // 背景层（纸 / 远山 / 月 / 暗角 / 字帘）
+let bgPrev;               // 上一首的背景，用于换首时交叉淡入
+let bgCrossT = -1;        // 交叉淡入起始时刻（-1 = 无）
+let ink;                  // 森林层（透明底，只叠墨迹）
+let tbuf;                 // 采样诗句笔画的离屏 buffer
+let homes = [];           // 当前诗句的笔画像素（归位点）
+let particles = [];       // 每一点墨
+let leaves = [];          // 被风吹散的飞墨
+let verse = 0;
+let phase = 'form';       // 'form' | 'wind'
+let phaseStart = 0;
+let gust = { active:false, x:0, dir:1, t0:0, full:false };
+let pal;
+let flow = { scale:0.0055, turbMul:1, axis:-Math.PI/2, swirl:0, speed:1.15, zoff:0 };  // 每首诗一套气韵路径
+let birds = [];           // 归鸟
+let weather = [];         // 落雪 / 落花
+
+function setup(){
+  const st = document.getElementById('stage');
+  const c = createCanvas(st.clientWidth, st.clientHeight);   // 满幅出血
+  c.parent('stage');
+  W=width; H=height;
+  bg  = createGraphics(W,H);
+  bgPrev = createGraphics(W,H);
+  ink = createGraphics(W,H); ink.strokeCap(ROUND);
+  tbuf = createGraphics(W,H); tbuf.pixelDensity(1);
+  startVerse(0, true);
+}
+
+/* ---------- 采样完整古诗笔画 → 归位点（竖排右起，一整首《鹿柴》）---------- */
+function buildHomes(){
+  const g = tbuf.drawingContext;
+  tbuf.background(255);
+  g.fillStyle='#000'; g.textAlign='center'; g.textBaseline='middle';
+  const lines=pal.lines, rows=5, cols=lines.length;   // 4 列 × 5 字
+  const S=Math.min(W,H);
+  const cs=Math.floor(S*0.116);
+  g.font = cs+'px '+POEM_FONT;
+  const colGap=S*0.156, rowGap=cs*1.16;
+  const cx0=W*0.5 + colGap*(cols-1)/2;            // 最右列起（竖排右起）
+  const cy0=H*0.5 - rowGap*(rows-1)/2;
+  for(let ci=0;ci<cols;ci++){
+    const line=lines[ci], cx=cx0-colGap*ci;
+    for(let ri=0;ri<line.length;ri++) g.fillText(line[ri], cx, cy0+rowGap*ri);
+  }
+  tbuf.loadPixels();
+  let pts=[];
+  const step=1;
+  for(let y=0;y<H;y+=step) for(let x=0;x<W;x+=step)
+    if(tbuf.pixels[4*(y*W+x)] < 120) pts.push({x,y});
+  // 均匀下采样到目标墨点数
+  homes=[];
+  const CAP=P.dots;
+  if(pts.length<=CAP) homes=pts;
+  else { const k=pts.length/CAP; for(let i=0;i<CAP;i++) homes.push(pts[Math.floor(i*k)]); }
+}
+
+/* ---------- 背景层：纸 / 月 / 字帘 / 远山 / 暗角 ---------- */
+function ridge(baseY, amp, tint, alpha, off){
+  bg.noStroke(); bg.fill(tint[0],tint[1],tint[2],alpha);
+  bg.beginShape();
+  bg.vertex(-5,H+5);
+  for(let x=0;x<=W;x+=W/48){
+    const y=baseY + (noise(x*0.0045+off, off)*2-1)*amp;
+    bg.vertex(x,y);
+  }
+  bg.vertex(W+5,H+5);
+  bg.endShape(CLOSE);
+}
+function buildBackground(){
+  const c=color(pal.bg), pr=red(c),pg=green(c),pb=blue(c);
+  const ic=color(pal.ink), ir=red(ic),ig=green(ic),ib=blue(ic);
+  const ctx=bg.drawingContext;
+  bg.clear(); bg.noStroke(); bg.background(pr,pg,pb);
+
+  // 月：淡淡一轮 + 月晕
+  const S0=Math.min(W,H), mx=W*0.77, my=H*0.19;
+  bg.noFill();
+  for(let r=1;r<=3;r++){ bg.stroke(255,252,242, 7-r*1.6); bg.strokeWeight(2); bg.circle(mx,my, S0*0.15 + r*S0*0.05); }
+  bg.noStroke();
+  bg.fill(255,252,242, pal.warm?12:16); bg.circle(mx,my,S0*0.20);
+  bg.fill(255,252,242, pal.warm?34:30); bg.circle(mx,my,S0*0.135);
+  // 淡云：几缕横向云气
+  for(let i=0;i<3;i++){ bg.fill(255,255,250, 7); bg.ellipse(W*(0.28+i*0.24), H*(0.13+i*0.06), S0*(0.34+i*0.1), S0*0.03); }
+
+  // 字帘：全诗竖排右起，极淡 —— 背景纹理层
+  ctx.save();
+  ctx.fillStyle='rgba('+ir+','+ig+','+ib+',0.055)';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const S=Math.min(W,H), ccs=S*0.055; ctx.font=ccs+'px '+POEM_FONT;
+  const cols=pal.lines.length, colGap=Math.min(W*0.9/cols, S*0.19), cx0=W*0.5+colGap*(cols-1)/2;
+  for(let ci=0;ci<cols;ci++){
+    const line=pal.lines[ci], cx=cx0-colGap*ci; let cy=H*0.12;
+    for(const ch of line){ ctx.fillText(ch,cx,cy); cy+=ccs*1.14; }
+  }
+  ctx.restore();
+
+  // 远山：两层柔和剪影
+  ridge(H*0.72, H*0.05,  [ir,ig,ib], 14, 11.3);
+  ridge(H*0.82, H*0.045, [ir,ig,ib], 24, 4.7);
+
+  sceneStatic();                          // 每首诗的场景布景（竹 / 雪 / 光柱 / 月…）
+
+  // 暗角：把画面聚拢，显得饱满
+  const vg=ctx.createRadialGradient(W/2,H*0.46,W*0.22, W/2,H*0.52,W*0.72);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(28,22,12,0.17)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+}
+function rr(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function drawColophon(){
+  const ic=color(pal.ink), g=drawingContext, S=Math.min(W,H);
+  g.save(); g.textAlign='center'; g.textBaseline='middle';
+  const cs=S*0.03; g.font=cs+'px '+POEM_FONT;
+  g.fillStyle='rgba('+red(ic)+','+green(ic)+','+blue(ic)+',0.52)';
+  const author=pal.author, col=author+pal.title; let x=Math.max(W*0.05,26), y=H*0.14;   // 竖排落款：作者 + 篇名
+  for(let i=0;i<col.length;i++){ g.fillText(col[i], x, y); y += cs*1.28 + (i===author.length-1?cs*0.5:0); }
+  const ss=cs*1.05, sy=y+cs*0.12;         // 朱砂印
+  g.fillStyle='#b5452f'; rr(g,x-ss/2,sy,ss,ss,4); g.fill();
+  g.fillStyle='#f6e7d6'; g.font=(ss*0.6)+'px '+POEM_FONT; g.fillText('墨', x, sy+ss*0.54);
+  g.restore();
+}
+
+/* ---------- 每首诗的场景：静态布景 + 天气 ---------- */
+function sceneStatic(){           // 画在 bg 上（换首重建）
+  const S=Math.min(W,H), ic=color(pal.ink), ir=red(ic),ig=green(ic),ib=blue(ic), ctx=bg.drawingContext;
+  if(pal.scene==='bamboo'){                       // 竹里館：两侧竹影 + 明月更亮
+    bg.noStroke(); bg.fill(255,253,245,30); bg.circle(W*0.73,H*0.2,S*0.17);
+    const culm=(x,dir,h)=>{
+      bg.noFill(); bg.stroke(ir,ig,ib,58); bg.strokeWeight(S*0.013);   // 竹影加深
+      bg.beginShape(); for(let t=0;t<=1.001;t+=0.12) bg.vertex(x+dir*Math.sin(t*1.1)*S*0.03, H - t*h); bg.endShape();
+      bg.strokeWeight(S*0.006);
+      for(let i=0;i<5;i++){ const ly=H-h*(0.6+i*0.08), lx=x+dir*Math.sin(0.8)*S*0.03; bg.line(lx,ly,lx+dir*S*0.06,ly-S*0.022); bg.line(lx,ly,lx+dir*S*0.055,ly+S*0.016); }
+    };
+    culm(W*0.05,1,H*0.86); culm(W*0.12,1,H*0.68); culm(W*0.19,1,H*0.55);
+    culm(W*0.97,-1,H*0.88); culm(W*0.9,-1,H*0.64); culm(W*0.83,-1,H*0.5);
+  }
+  else if(pal.scene==='snow'){                    // 江雪：千山 + 寒江 + 孤舟
+    ridge(H*0.56, H*0.06, [ir,ig,ib], 9, 21.7);
+    ridge(H*0.63, H*0.05, [ir,ig,ib], 13, 8.3);
+    bg.noStroke(); bg.fill(255,255,255,55); bg.rect(0,H*0.87,W,H*0.13);   // 寒江
+    const bx=W*0.33, by=H*0.905;                                          // 孤舟
+    bg.noFill(); bg.stroke(ir,ig,ib,130); bg.strokeWeight(S*0.006);
+    bg.line(bx-S*0.055,by,bx+S*0.055,by); bg.line(bx-S*0.05,by,bx-S*0.03,by+S*0.015); bg.line(bx+S*0.05,by,bx+S*0.03,by+S*0.015);
+    bg.strokeWeight(S*0.0045); bg.line(bx-S*0.01,by-S*0.03,bx-S*0.01,by);  // 翁
+    bg.line(bx-S*0.01,by-S*0.028,bx+S*0.07,by-S*0.055);                    // 钓竿
+  }
+  else if(pal.scene==='forest'){                  // 鹿柴：返景光柱 + 点苔
+    for(let i=0;i<4;i++){ const gx=W*(0.5+i*0.14);
+      const lg=ctx.createLinearGradient(gx,0, gx-W*0.22,H);
+      lg.addColorStop(0,'rgba(224,164,86,0.17)'); lg.addColorStop(0.55,'rgba(224,164,86,0.05)'); lg.addColorStop(1,'rgba(224,164,86,0)');
+      ctx.save(); ctx.fillStyle=lg; ctx.beginPath();
+      ctx.moveTo(gx,0); ctx.lineTo(gx+S*0.085,0); ctx.lineTo(gx-W*0.14,H); ctx.lineTo(gx-W*0.225,H); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+    bg.noStroke(); for(let i=0;i<52;i++){ bg.fill(ir,ig,ib, random(10,26)); bg.circle(random(W), H*random(0.82,0.98), S*random(0.004,0.012)); }
+  }
+  else if(pal.scene==='petals'){                  // 鳥鳴澗：明月（落花在天气层）
+    bg.noStroke(); bg.fill(255,253,245,30); bg.circle(W*0.74,H*0.19,S*0.15);
+  }
+  else if(pal.scene==='frost'){                   // 靜夜思：明月 + 地上霜
+    bg.noStroke(); bg.fill(255,253,246,38); bg.circle(W*0.74,H*0.18,S*0.18);
+    bg.fill(255,255,255,24); bg.rect(0,H*0.8,W,H*0.2);          // 一层冷白
+    for(let i=0;i<70;i++){ bg.fill(255,255,255,random(22,64)); bg.circle(random(W), H*random(0.8,0.99), S*random(0.003,0.007)); }
+  }
+  else if(pal.scene==='sunset'){                  // 登鸛雀樓：落日 + 黃河
+    const sx=W*0.7, sy=H*0.6;
+    bg.noStroke();
+    for(let r=4;r>=1;r--){ bg.fill(232,152,72, 10*r); bg.circle(sx,sy, S*0.09*r); }  // 落日暖晕
+    bg.fill(244,182,96, 70); bg.circle(sx,sy, S*0.15);
+    bg.fill(214,182,120, 46); bg.rect(0,H*0.82,W,H*0.18);        // 黃河
+    for(let i=0;i<3;i++){ bg.fill(255,240,210, 18); bg.rect(0, H*(0.84+i*0.04), W, S*0.008); }  // 水光横纹
+  }
+  else if(pal.scene==='rain'){                    // 春曉：夜雨（雨在天气层）+ 微雾
+    bg.noStroke(); bg.fill(255,255,255,10); bg.rect(0,0,W,H*0.5);
+  }
+}
+function initWeather(){
+  weather=[];
+  const S=Math.min(W,H);
+  if(pal.scene==='snow'){ for(let i=0;i<95;i++) weather.push({x:random(W),y:random(H),vy:random(0.4,1.1),vx:random(-0.3,0.3),r:random(1,2.6),ph:random(TWO_PI)}); }
+  else if(pal.scene==='petals'){ for(let i=0;i<34;i++) weather.push({x:random(W),y:random(H),vy:random(0.35,0.85),sway:random(0.5,1.3),r:random(4,7.5),ph:random(TWO_PI),rot:random(TWO_PI)}); }
+  else if(pal.scene==='rain'){ for(let i=0;i<80;i++) weather.push({x:random(W),y:random(H),vy:random(11,17),vx:random(2.2,3.6),len:random(S*0.03,S*0.06)}); }
+}
+function drawWeather(){
+  if(pal.scene==='snow'){
+    noStroke(); fill(255,255,255,205);
+    for(const s of weather){ s.y+=s.vy; s.x+=s.vx+Math.sin(frameCount*0.02+s.ph)*0.3; if(s.y>H+4){s.y=-4;s.x=random(W);} circle(s.x,s.y,s.r); }
+  } else if(pal.scene==='petals'){
+    noStroke();
+    for(const p of weather){ p.y+=p.vy; p.x+=Math.sin(frameCount*0.015+p.ph)*p.sway; p.rot+=0.02; if(p.y>H+6){p.y=-6;p.x=random(W);}
+      push(); translate(p.x,p.y); rotate(p.rot); fill(216,152,120,170); ellipse(0,0,p.r*1.7,p.r*0.75); pop(); }
+  } else if(pal.scene==='rain'){
+    const ic=color(pal.ink); stroke(red(ic),green(ic),blue(ic),55); strokeWeight(1.2);
+    for(const r of weather){ r.y+=r.vy; r.x+=r.vx; if(r.y>H+4){r.y=-r.len;r.x=random(-40,W);} line(r.x,r.y,r.x-r.vx*1.4,r.y-r.len); }
+  }
+}
+
+/* ---------- 装饰：归鸟 / 印章 ---------- */
+function initBirds(){
+  birds=[];
+  const n=pal.birds||0;
+  for(let i=0;i<n;i++) birds.push({
+    x:random(W), y:random(H*0.08,H*0.26),
+    sp:random(0.12,0.4)*(random()<0.5?1:-1),
+    ph:random(TWO_PI), sz:Math.min(W,H)*random(0.02,0.035),
+  });
+}
+function drawBirds(){
+  if(!birds.length) return;
+  const ic=color(pal.ink), g=drawingContext;
+  g.save(); g.strokeStyle='rgba('+red(ic)+','+green(ic)+','+blue(ic)+',0.5)';
+  g.lineWidth=2; g.lineCap='round'; g.fillStyle='transparent';
+  for(const b of birds){
+    b.x+=b.sp; if(b.x<-40)b.x=W+40; if(b.x>W+40)b.x=-40;
+    const flap=(Math.sin(frameCount*0.09+b.ph)*0.5+0.5), w=b.sz, h=b.sz*(0.5+flap*0.7);
+    const y=b.y+Math.sin(frameCount*0.012+b.ph)*7;
+    g.beginPath();                                   // 两笔弧成 ︿ 形飞鸟
+    g.moveTo(b.x-w, y+w*0.15);
+    g.quadraticCurveTo(b.x-w*0.45, y-h, b.x, y);
+    g.quadraticCurveTo(b.x+w*0.45, y-h, b.x+w, y+w*0.15);
+    g.stroke();
+  }
+  g.restore();
+}
+function drawSeals(){
+  const g=drawingContext, S=Math.min(W,H);
+  // 引首章：诗右上，竖长方
+  const ex=W*0.5 + S*0.30, ey=H*0.5 - S*0.31, ew=S*0.045, eh=S*0.11;
+  g.save();
+  g.fillStyle='#b5452f'; rr(g,ex,ey,ew,eh,4); g.fill();
+  g.fillStyle='rgba(246,231,214,0.92)'; g.textAlign='center'; g.textBaseline='middle';
+  const fs=ew*0.62; g.font=fs+'px '+POEM_FONT;
+  const s=pal.seal||'山水';
+  g.fillText(s[0], ex+ew/2, ey+eh*0.29);
+  g.fillText(s[1]||s[0], ex+ew/2, ey+eh*0.71);
+  // 压角章：左下角小方
+  const cs=S*0.052, cx=S*0.06, cy=H-S*0.11;
+  g.fillStyle='#b5452f'; rr(g,cx,cy,cs,cs,4); g.fill();
+  g.fillStyle='rgba(246,231,214,0.92)'; g.font=(cs*0.6)+'px '+POEM_FONT;
+  g.fillText('閒', cx+cs/2, cy+cs*0.55);
+  g.restore();
+}
+
+function startVerse(v, first){
+  verse=v; pal=POEMS[verse];
+  // 每首诗一套独立的气韵路径：用打散的种子，避免相邻种子相关（各首真正不同）
+  randomSeed((P.seed*7919 + verse*104729 + 31) % 2147483647);
+  for(let k=0;k<6;k++) random();          // 预热，跳过 LCG 前几位的相关性
+  flow = {
+    scale:   random(0.0036, 0.0072),      // 噪声疏密：卷动的粗细
+    turbMul: random(0.65, 1.45),          // 湍流强度
+    axis:    -HALF_PI + random(-0.6, 0.6), // 主轴：不总是正上，偏左/偏右
+    swirl:   random(-0.45, 0.45),         // 旋势
+    speed:   SPEED * random(0.82, 1.25),  // 流速
+    zoff:    random(500),                 // 噪声相位
+  };
+  // 主种子：供 背景 / 采样 / 粒子，保证整体可复现
+  randomSeed(P.seed*10 + verse);
+  noiseSeed(P.seed*10 + verse);
+  if(!first){ bgPrev.clear(); bgPrev.image(bg,0,0); bgCrossT=millis(); }  // 换首：旧背景交叉淡入
+  buildBackground();                     // 背景层随季相重建
+  // 森林层透明底：首句清空；换首只柔和擦淡、多留残墨接续（弱化断点）
+  if(first) ink.clear();
+  else {
+    const dc=ink.drawingContext;
+    dc.globalCompositeOperation='destination-out';
+    ink.noStroke(); ink.fill(0,0,0,70); ink.rect(0,0,W,H);
+    dc.globalCompositeOperation='source-over';
+  }
+  buildHomes();
+  // 让墨点与归位点对齐；已有的墨点从当前(飞散)位置飞向新字 = 墨灰重聚成下一句
+  const N=homes.length, old=particles;
+  particles=[];
+  for(let i=0;i<N;i++){
+    const h=homes[i];
+    let sx, sy;
+    if(old.length){ const o=old[i%old.length]; sx=o.x; sy=o.y; }
+    else { sx=random(W); sy=random(H*0.35, H+H*0.2); }             // 首轮：墨自纸面浮起
+    const bold = random()<0.13;                                    // 少数主干粗笔
+    particles.push({
+      hx:h.x, hy:h.y, x:sx, y:sy, px:sx, py:sy,
+      ink: random()<0.16 ? random(0.95,1.35) : random(0.42,0.85),  // 浓淡：偶有焦墨
+      fw: bold ? random(2.4,4.4) : random(0.5,1.6),                // 林中写意笔的粗细
+      wet: bold && random()<0.55,                                  // 湿墨会洇开
+      dry: random(0.08,0.28),                                      // 各自的飞白概率
+      age: (random(60))|0,
+    });
+  }
+  initBirds(); initWeather();
+  leaves=[]; gust.active=false;
+  phase='drift'; phaseStart=millis();
+  document.getElementById('v-line').textContent = pal.title;
+  document.getElementById('v-season').textContent = pal.author+' · 第 '+(verse+1)+'/'+POEMS.length+' 首 · 墨聚成诗';
+}
+
+/* ---------- 转：一阵风 ---------- */
+function startGust(full){
+  gust.active=true; gust.full=full; gust.t0=millis();
+  gust.dir = random()<0.5 ? 1 : -1;
+  gust.x = gust.dir>0 ? -80 : W+80;
+  if(full) phase='wind';
+}
+function windAt(x){
+  const sigma=W*0.16, d=(x-gust.x)/sigma;
+  return Math.exp(-d*d*0.5);
+}
+
+/* ---------- 主循环：墨林(散) → 成诗(聚) → 驻 → 风(散回墨) ---------- */
+function draw(){
+  const now=millis(), t=now-phaseStart;
+  const HOLD_MS = P.growSecs*1000;                 // 诗停留时长（可调）
+  const GATHER_END = DRIFT_MS + GATHER_MS;
+  const HOLD_END   = GATHER_END + HOLD_MS;
+
+  if(phase!=='wind' && P.auto && t>HOLD_END && !gust.active) startGust(true);
+  if(!gust.active) phase = t<DRIFT_MS ? 'drift' : (t<GATHER_END ? 'gather' : 'hold');
+
+  image(bg,0,0);                        // 背景层：纸 / 远山 / 月 / 字帘 / 暗角
+  if(bgCrossT>=0){                       // 换首：旧背景淡出、新背景淡入（弱化断点）
+    const e=(millis()-bgCrossT)/1100;
+    if(e>=1) bgCrossT=-1;
+    else { push(); tint(255,255*(1-e*e)); image(bgPrev,0,0); pop(); }
+  }
+  image(ink,0,0);                       // 森林层：透明底，只叠墨迹
+
+  const z=frameCount*0.0009 + flow.zoff;
+  const ic=color(pal.ink), ir=red(ic), ig=green(ic), ib=blue(ic);
+
+  let windProg=0;
+  if(gust.active){ windProg=(now-gust.t0)/WIND_MS; gust.x += gust.dir*(W+220)/(WIND_MS/16.7); }
+
+  // 归位权重 hw：0 = 墨林(散) → 1 = 诗(聚)，平滑无缝
+  let hw;
+  if(t<DRIFT_MS) hw=0;
+  else if(t<GATHER_END){ const u=(t-DRIFT_MS)/GATHER_MS; hw=u*u*(3-2*u); }   // smoothstep
+  else hw=1;
+  if(gust.active) hw=Math.max(0, 1-windProg*1.4);                            // 风起：诗松开，散回墨林
+
+  // 连续微退：整层随 hw 渐退——墨林积得住，成诗时旧林退去、聚拢处不断补写
+  { const dc=ink.drawingContext, fade=4+hw*11;
+    dc.globalCompositeOperation='destination-out';
+    ink.noStroke(); ink.fill(0,0,0, fade); ink.rect(0,0,W,H);
+    dc.globalCompositeOperation='source-over'; }
+
+  for(let i=0;i<particles.length;i++){
+    const p=particles[i];
+    // 同一笔墨：气韵漂流 与 归位牵引 按 hw 平滑混合（散→聚 一气呵成）
+    const nz=noise(p.x*flow.scale, p.y*flow.scale, z);
+    const ang=flow.axis + flow.swirl + (nz-0.5)*Math.PI*(P.turb/2.4)*flow.turbMul;
+    const fx=Math.cos(ang)*flow.speed, fy=Math.sin(ang)*flow.speed;
+    const pull=0.02 + hw*0.30;
+    let vx=fx*(1-hw) + (p.hx-p.x)*pull;
+    let vy=fy*(1-hw) + (p.hy-p.y)*pull;
+    if(gust.active){
+      const g=windAt(p.x);
+      if(g>0.01){
+        vx += gust.dir*P.wind*g*2.6;
+        vy += (-0.3*P.wind*g) + Math.sin(p.y*0.05+frameCount*0.1)*g*1.3;
+        if(g>0.4 && random()<g*0.06)
+          leaves.push({x:p.x,y:p.y,vx:gust.dir*(1.5+random()*3),vy:-random()*1.8-0.3,life:40+random()*50,a:1,w:p.fw});
+      }
+    }
+    p.px=p.x; p.py=p.y; p.x+=vx; p.y+=vy; p.age++;
+    if(hw<0.1 && (p.y<-14 || p.x<-14 || p.x>W+14)){ p.y=H+random(24); p.x=random(W*0.15,W*0.85); p.age=0; }   // 墨林期出界重生
+
+    if(random() < p.dry*(1-hw*0.92)) continue;      // 飞白（成诗时几乎不断，字更密实）
+    const grown=constrain(p.age/16,0,1);
+    // 写意→清晰：墨林粗湿浓淡，成诗填实更密
+    const wgt = p.fw*(0.6+grown*1.0)*(1-hw) + (1.6+p.ink*0.8)*hw;    // 诗成：笔画填实、更密（仍留轻重）
+    const a   = (18*p.ink*grown)*(1-hw) + 205*hw*(0.5+0.5*hw);
+    if(p.wet && hw<0.4 && p.age>8 && random()<0.18){                     // 湿墨只在墨林期洇
+      ink.noStroke(); ink.fill(ir,ig,ib, 18*p.ink*0.22*(1-hw)); ink.circle(p.x,p.y, p.fw*(2.0+grown*2.4));
+    }
+    ink.stroke(ir,ig,ib, a); ink.strokeWeight(Math.max(0.5,wgt));
+    ink.line(p.px,p.py,p.x,p.y);
+  }
+
+  // 风扫完 → 换季、回到墨林(drift)
+  if(gust.active && gust.full && (gust.dir>0 ? gust.x>W+120 : gust.x<-120)){
+    gust.active=false; startVerse((verse+1)%POEMS.length, false);
+  } else if(gust.active && !gust.full && windProg>1){
+    gust.active=false;
+  }
+
+  // 秋：返景入深林 —— 一抹暖光斜照
+  if(pal.warm){
+    push(); noStroke();
+    const lg=drawingContext.createRadialGradient(W*0.72,H*0.3,10, W*0.72,H*0.3,W*0.75);
+    lg.addColorStop(0,'rgba(214,150,74,0.16)'); lg.addColorStop(1,'rgba(214,150,74,0)');
+    drawingContext.fillStyle=lg; drawingContext.fillRect(0,0,W,H); pop();
+  }
+
+  // 飞墨
+  for(let i=leaves.length-1;i>=0;i--){
+    const l=leaves[i];
+    l.x+=l.vx; l.y+=l.vy; l.vy+=0.045; l.vx*=0.99; l.life--; l.a=l.life/70;
+    if(l.life<=0){ leaves.splice(i,1); continue; }
+    stroke(ir,ig,ib, 120*l.a); strokeWeight(l.w); point(l.x,l.y);
+  }
+
+  drawBirds();                           // 归鸟（按诗，江雪无鸟）
+  drawWeather();                         // 落雪 / 落花（按诗）
+  drawColophon();                        // 题款：作者 + 篇名 + 名章
+  drawSeals();                           // 引首章 + 压角章
+
+  const prog = gust.active ? 1 : constrain(t/HOLD_END,0,1);
+  document.getElementById('v-prog').style.width = (prog*100)+'%';
+}
+
+/* ---- 交互：拖动＝就近拨墨，把那片墨搅散 ---- */
+function mouseDragged(){
+  if(mouseX<0||mouseX>W||mouseY<0||mouseY>H) return;
+  const dir=mouseX>=pmouseX ? 1 : -1;
+  const spd=constrain(dist(mouseX,mouseY,pmouseX,pmouseY),0,40);
+  for(const p of particles){
+    const dx=p.x-mouseX, dy=p.y-mouseY, r=Math.sqrt(dx*dx+dy*dy);
+    if(r<W*0.16){
+      const g=1-r/(W*0.16);
+      p.x+=dir*g*(2+spd*0.15); p.y-=g*1.2;
+      if(g>0.5 && random()<0.14)
+        leaves.push({x:p.x,y:p.y,vx:dir*(1+random()*2.5),vy:-random()*1.6,life:35+random()*40,a:1,w:p.fw});
+    }
+  }
+}
+
+/* ---------------- UI ---------------- */
+function lab(k,txt){ document.getElementById('lab-'+k).textContent=txt; }
+function gustNow(){ startGust(true); }
+function forceNext(){ startVerse((verse+1)%POEMS.length, false); }
+function stepSeed(d){ P.seed=Math.max(0,P.seed+d); seedInput.value=P.seed; restart(); }
+function jumpSeed(v){ P.seed=Math.max(0,parseInt(v)||0); restart(); }
+function restart(){ particles=[]; startVerse(0, true); }
+function savePNG(){ saveCanvas('ink-poem-'+pal.title+'-seed'+P.seed,'png'); }
+
+window.addEventListener('resize',()=>{
+  const s=Math.min(window.innerWidth-340,window.innerHeight-48,860);
+  const st=document.getElementById('stage');
+  resizeCanvas(st.clientWidth, st.clientHeight); W=width; H=height;
+  bg=createGraphics(W,H); bgPrev=createGraphics(W,H); bgCrossT=-1;
+  ink=createGraphics(W,H); ink.strokeCap(ROUND);
+  tbuf=createGraphics(W,H); tbuf.pixelDensity(1);
+  particles=[]; startVerse(verse, true);
+});
+</script>
+</body>
+</html>

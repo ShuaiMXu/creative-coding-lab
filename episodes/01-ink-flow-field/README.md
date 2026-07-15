@@ -2,6 +2,13 @@
 
 > 用 Perlin 流场 + 叠墨，几百行 p5.js 画一幅会流动的水墨，还能用鼠标当毛笔往里注墨。
 
+## 两个版本
+
+| 版本 | 说明 | 在线 |
+| --- | --- | --- |
+| **[`index.html`](./index.html)** 静态版 | 水墨流场，鼠标当毛笔注墨，调参数、存图。（本文档主要讲这个） | [▶ 打开](https://shuaimxu.github.io/creative-coding-lab/episodes/01-ink-flow-field/) |
+| **[`narrative.html`](./narrative.html)** 叙事版 | 「墨成诗」——满纸写意墨林聚拢成一首完整唐诗（繁体），风起吹散、换下一首；**七首唐诗 · 七种场景**（雪 / 竹 / 落日 / 夜雨 / 明月…）轮播，每首独立气韵路径、归鸟、三印。 | [▶ 打开](https://shuaimxu.github.io/creative-coding-lab/episodes/01-ink-flow-field/narrative.html) |
+
 ## 跑起来
 
 双击 `index.html`，或本地起服务器：

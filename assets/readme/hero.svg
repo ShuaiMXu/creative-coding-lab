@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420"
+     role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">Creative Coding Lab — 用代码复活东方美学</title>
+  <desc id="heroDesc">水墨主题的 creative coding 内容频道封面：每期用几百行代码把一件传统文物或美学变成可交互的生成艺术作品。右侧是 Perlin 流场墨迹汇成的墨林，配一枚朱砂印章。</desc>
+
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e1c16"/>
+      <stop offset="1" stop-color="#15130e"/>
+    </linearGradient>
+    <linearGradient id="inkfade" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#e9e1cf" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#e9e1cf" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="amberfade" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#c9975a" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#c9975a" stop-opacity="0.04"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="420" rx="26" fill="url(#paper)"/>
+
+  <!-- 墨林 · 右侧流场墨迹（母题：Perlin flow field，飞白用虚线断笔） -->
+  <g stroke-linecap="round" fill="none">
+    <path d="M735 372 C 726 300 760 250 742 190 C 728 142 766 104 752 60" stroke="url(#inkfade)" stroke-width="9" opacity="0.5"/>
+    <path d="M785 378 C 800 306 770 258 800 198 C 824 150 792 108 818 66" stroke="url(#amberfade)" stroke-width="12"/>
+    <path d="M842 382 C 830 300 872 252 850 188 C 832 138 874 100 856 54" stroke="url(#inkfade)" stroke-width="7" opacity="0.75"/>
+    <path d="M900 380 C 918 312 884 260 916 200 C 942 152 908 112 936 70" stroke="url(#amberfade)" stroke-width="15" stroke-dasharray="42 12 26 9 60"/>
+    <path d="M960 384 C 948 302 990 250 966 186 C 946 134 988 96 970 48" stroke="url(#inkfade)" stroke-width="9" opacity="0.62"/>
+    <path d="M1016 380 C 1034 314 1000 262 1030 202 C 1054 156 1022 116 1046 76" stroke="url(#inkfade)" stroke-width="6" opacity="0.85" stroke-dasharray="70 10 30 8 40"/>
+    <path d="M1072 384 C 1060 306 1100 256 1078 194 C 1060 144 1098 106 1082 62" stroke="url(#amberfade)" stroke-width="10" opacity="0.9"/>
+    <path d="M1126 380 C 1140 320 1112 268 1136 210 C 1156 166 1128 128 1148 88" stroke="url(#inkfade)" stroke-width="5" opacity="0.55"/>
+  </g>
+
+  <!-- 朱砂印 · 频道印 -->
+  <g transform="translate(1058 300) rotate(-4)">
+    <rect x="0" y="0" width="86" height="86" rx="9" fill="#b5452f"/>
+    <rect x="7" y="7" width="72" height="72" rx="5" fill="none" stroke="#f4ddc9" stroke-width="2" opacity="0.85"/>
+    <text x="43" y="58" text-anchor="middle" font-family="'Songti SC','Noto Serif SC',serif" font-weight="700" font-size="44" fill="#f6e7d6">墨</text>
+  </g>
+
+  <!-- 左侧标题块 -->
+  <g transform="translate(72 0)">
+    <text x="2" y="112" font-family="ui-monospace,'SFMono-Regular',Menlo,monospace" font-size="17" letter-spacing="6" fill="#a79a7e">CREATIVE&#160;CODING&#160;LAB</text>
+    <line x1="4" y1="130" x2="52" y2="130" stroke="#c9975a" stroke-width="3" stroke-linecap="round"/>
+
+    <text x="0" y="210" font-family="'Songti SC','Noto Serif SC',Georgia,serif" font-weight="700" font-size="76" fill="#efe7d5">用代码复活东方美学</text>
+
+    <text x="4" y="266" font-family="'PingFang SC','Noto Serif SC',sans-serif" font-size="24" fill="#c9bfa6">每一期，几百行代码 → 一件会呼吸、可拨动的生成艺术。</text>
+
+    <text x="4" y="326" font-family="ui-monospace,'SFMono-Regular',Menlo,monospace" font-size="16" letter-spacing="1.5" fill="#8f8b78">p5.js &#160;·&#160; GLSL&#160;shader &#160;·&#160; 20&#160;期选题库 &#160;·&#160; 同种子可复现 &#160;·&#160; MIT</text>
+  </g>
+</svg>

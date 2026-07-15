@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360"
+     role="img" aria-labelledby="fTitle fDesc">
+  <title id="fTitle">内容公式 · 每一期的可复制引擎</title>
+  <desc id="fDesc">传统母题 乘 生成算法 乘 可交互 乘 短视频，汇聚成一期可在浏览器打开的交互作品加一条演示视频。四张输入卡片分别对应国潮钩子、技术惊叹、传播理由和流量入口。</desc>
+
+  <defs>
+    <linearGradient id="fpaper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e1c16"/>
+      <stop offset="1" stop-color="#16140f"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="360" rx="24" fill="url(#fpaper)"/>
+
+  <!-- 汇聚线：四卡底部 → 中心 → 输出 -->
+  <g fill="none" stroke="#5a5442" stroke-width="2">
+    <path d="M170 214 C 170 268 600 250 600 286"/>
+    <path d="M457 214 C 457 262 600 254 600 286"/>
+    <path d="M743 214 C 743 262 600 254 600 286"/>
+    <path d="M1030 214 C 1030 268 600 250 600 286"/>
+  </g>
+
+  <!-- 四张输入卡 -->
+  <!-- 卡片模板：serif 主标题 + mono 子说明 + amber 角色标签 -->
+  <g font-family="'PingFang SC','Noto Serif SC',sans-serif">
+    <!-- 1 母题 -->
+    <g transform="translate(40 40)">
+      <rect width="260" height="150" rx="14" fill="#221f18" stroke="#3a3527" stroke-width="1.5"/>
+      <line x1="20" y1="40" x2="52" y2="40" stroke="#c9975a" stroke-width="3" stroke-linecap="round"/>
+      <text x="20" y="72" font-family="'Songti SC','Noto Serif SC',serif" font-weight="700" font-size="34" fill="#efe7d5">母题</text>
+      <text x="20" y="104" font-size="15" fill="#a8a08a">文物 · 书画 · 纹样</text>
+      <text x="20" y="130" font-family="ui-monospace,Menlo,monospace" font-size="13" fill="#c9975a">→ 国潮钩子</text>
+    </g>
+    <!-- 2 算法 -->
+    <g transform="translate(340 40)">
+      <rect width="234" height="150" rx="14" fill="#221f18" stroke="#3a3527" stroke-width="1.5"/>
+      <line x1="20" y1="40" x2="52" y2="40" stroke="#c9975a" stroke-width="3" stroke-linecap="round"/>
+      <text x="20" y="72" font-family="'Songti SC','Noto Serif SC',serif" font-weight="700" font-size="34" fill="#efe7d5">算法</text>
+      <text x="20" y="104" font-size="15" fill="#a8a08a">流场 · 粒子 · 物理 · shader</text>
+      <text x="20" y="130" font-family="ui-monospace,Menlo,monospace" font-size="13" fill="#c9975a">→ 技术惊叹</text>
+    </g>
+    <!-- 3 交互 -->
+    <g transform="translate(626 40)">
+      <rect width="234" height="150" rx="14" fill="#221f18" stroke="#3a3527" stroke-width="1.5"/>
+      <line x1="20" y1="40" x2="52" y2="40" stroke="#c9975a" stroke-width="3" stroke-linecap="round"/>
+      <text x="20" y="72" font-family="'Songti SC','Noto Serif SC',serif" font-weight="700" font-size="34" fill="#efe7d5">交互</text>
+      <text x="20" y="104" font-size="15" fill="#a8a08a">拖一下 · 自己拨</text>
+      <text x="20" y="130" font-family="ui-monospace,Menlo,monospace" font-size="13" fill="#c9975a">→ 传播理由</text>
+    </g>
+    <!-- 4 短视频 -->
+    <g transform="translate(900 40)">
+      <rect width="260" height="150" rx="14" fill="#221f18" stroke="#3a3527" stroke-width="1.5"/>
+      <line x1="20" y1="40" x2="52" y2="40" stroke="#c9975a" stroke-width="3" stroke-linecap="round"/>
+      <text x="20" y="72" font-family="'Songti SC','Noto Serif SC',serif" font-weight="700" font-size="34" fill="#efe7d5">短视频</text>
+      <text x="20" y="104" font-size="15" fill="#a8a08a">前 3 秒必出成品</text>
+      <text x="20" y="130" font-family="ui-monospace,Menlo,monospace" font-size="13" fill="#c9975a">→ 流量入口</text>
+    </g>
+  </g>
+
+  <!-- 运算符 × -->
+  <g font-family="ui-monospace,Menlo,monospace" font-size="26" fill="#6f6a58" text-anchor="middle">
+    <text x="320" y="124">×</text>
+    <text x="600" y="124">×</text>
+    <text x="880" y="124">×</text>
+  </g>
+
+  <!-- 输出 pill -->
+  <g transform="translate(300 300)">
+    <rect x="0" y="0" width="600" height="44" rx="22" fill="#b5452f"/>
+    <text x="300" y="29" text-anchor="middle" font-family="'PingFang SC','Noto Serif SC',sans-serif" font-weight="600" font-size="17" fill="#f6e7d6">= 一期 · 浏览器可开的交互作品 &#160;+&#160; 一条 15–75s 演示</text>
+  </g>
+</svg>
