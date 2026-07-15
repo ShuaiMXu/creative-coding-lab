@@ -99,7 +99,8 @@
     </div>
     <div class="grp">
       <div class="row">
-        <button id="recBtn" onclick="toggleRec()" style="flex:1">⏺ 录屏</button>
+        <button id="recBtn" onclick="toggleRec()">⏺ 录屏</button>
+        <button id="recRoundBtn" onclick="recRound()">⏱ 录一轮</button>
       </div>
     </div>
 
@@ -524,7 +525,14 @@ function draw(){
 
   // 风扫完 → 换季、回到墨林(drift)
   if(gust.active && gust.full && (gust.dir>0 ? gust.x>W+120 : gust.x<-120)){
-    gust.active=false; rollSeed(); startVerse((verse+1)%POEMS.length, false);
+    gust.active=false;
+    if(recAutoRound){                     // 录一轮：这一首风扫完 → 稍留一点次首起势后自动停
+      recAutoRound=false; const mr=mediaRec;
+      startVerse((verse+1)%POEMS.length, false);
+      setTimeout(()=>{ if(mr && mr.state==='recording') mr.stop(); }, 320);
+    } else {
+      rollSeed(); startVerse((verse+1)%POEMS.length, false);
+    }
   } else if(gust.active && !gust.full && windProg>1){
     gust.active=false;
   }
@@ -575,28 +583,43 @@ function lab(k,txt){ document.getElementById('lab-'+k).textContent=txt; }
 function rollSeed(){ P.seed=Math.floor(Math.random()*99999); const el=document.getElementById('seedInput'); if(el) el.value=P.seed; }  // 每首诗随机一颗种子
 
 /* ---- 录屏：把画布录成 webm ---- */
-let mediaRec=null, recChunks=[];
-function toggleRec(){
-  const btn=document.getElementById('recBtn');
-  if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
+let mediaRec=null, recChunks=[], recSeed=0, recAutoRound=false;
+function resetRecBtns(){
+  const b1=document.getElementById('recBtn'), b2=document.getElementById('recRoundBtn');
+  b1.textContent='⏺ 录屏'; b2.textContent='⏱ 录一轮';
+  b1.style.background=b1.style.color=b2.style.background=b2.style.color='';
+}
+function startRec(btn, stopLabel){
   const cv=document.querySelector('#stage canvas');
-  if(!cv || !cv.captureStream || typeof MediaRecorder==='undefined'){ alert('当前浏览器不支持录屏，请用 Chrome/Edge。'); return; }
+  if(!cv || !cv.captureStream || typeof MediaRecorder==='undefined'){ alert('当前浏览器不支持录屏，请用 Chrome/Edge。'); return false; }
   const stream=cv.captureStream(60);
   let mime='video/webm;codecs=vp9';
   if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
   if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
-  recChunks=[];
+  recChunks=[]; recSeed=P.seed;
   mediaRec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:16000000});
   mediaRec.ondataavailable=e=>{ if(e.data && e.data.size>0) recChunks.push(e.data); };
   mediaRec.onstop=()=>{
+    recAutoRound=false;
     const blob=new Blob(recChunks,{type:'video/webm'});
     const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='ink-poem-'+P.seed+'.webm'; a.click();
+    const a=document.createElement('a'); a.href=url; a.download='ink-poem-'+recSeed+'.webm'; a.click();
     setTimeout(()=>URL.revokeObjectURL(url),2000);
-    btn.textContent='⏺ 录屏'; btn.style.background=''; btn.style.color='';
+    resetRecBtns();
   };
   mediaRec.start();
-  btn.textContent='■ 停止并保存'; btn.style.background='#8a2b2b'; btn.style.color='#fff';
+  btn.textContent=stopLabel; btn.style.background='#8a2b2b'; btn.style.color='#fff';
+  return true;
+}
+function toggleRec(){                          // 自由录：手动起停
+  if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
+  startRec(document.getElementById('recBtn'), '■ 停止并保存');
+}
+function recRound(){                           // 录一轮：从头起录，风扫完自动停
+  if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
+  P.auto=true; document.getElementById('auto').checked=true;
+  rollSeed(); particles=[]; startVerse(verse, true);   // 从这一首的墨林干净开始
+  if(startRec(document.getElementById('recRoundBtn'), '● 录制中…自动停')) recAutoRound=true;
 }
 function gustNow(){ startGust(true); }
 function forceNext(){ rollSeed(); startVerse((verse+1)%POEMS.length, false); }
