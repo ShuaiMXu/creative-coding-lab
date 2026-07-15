@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>墨林 · Ink Forest — Creative Coding Lab #01</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>window.p5||document.write('<script src="../../vendor/p5.min.js"><\/script>')</script>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;font-family:"Noto Serif SC","Songti SC",serif;background:#20201d;color:#e8e2d4;}
+  #app{display:flex;height:100%;min-height:100vh;}
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;}
+  #stage canvas{box-shadow:0 24px 60px rgba(0,0,0,.55);border-radius:2px;max-width:100%;max-height:100%;}
+  #panel{width:288px;flex:none;background:#26251f;border-left:1px solid #3a382f;padding:22px 20px;overflow-y:auto;}
+  #panel h1{font-size:19px;margin:0 0 2px;letter-spacing:2px;}
+  #panel .sub{font-size:12px;color:#9c9a8a;margin:0 0 18px;letter-spacing:1px;}
+  .grp{margin-bottom:18px;}
+  .grp label{display:flex;justify-content:space-between;font-size:12px;color:#c7c0ad;margin-bottom:6px;letter-spacing:.5px;}
+  .grp label .v{color:#c9975a;font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%;accent-color:#c9975a;background:transparent;}
+  .seed{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
+  .seed input[type=number]{flex:1;background:#1b1a15;border:1px solid #3a382f;color:#e8e2d4;padding:6px 8px;border-radius:4px;font-family:inherit;}
+  button{background:#33322a;border:1px solid #46443a;color:#e8e2d4;padding:7px 10px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:13px;transition:.15s;}
+  button:hover{background:#413f34;border-color:#5a5748;}
+  button.primary{background:#8a5a2b;border-color:#a06a33;color:#fff;}
+  button.primary:hover{background:#9a6531;}
+  .row{display:flex;gap:6px;}
+  .row button{flex:1;}
+  .swatches{display:flex;gap:6px;margin-top:6px;}
+  .sw{flex:1;height:22px;border-radius:3px;cursor:pointer;border:2px solid transparent;}
+  .sw.on{border-color:#c9975a;}
+  .hint{font-size:11px;line-height:1.6;color:#8a877a;margin-top:14px;border-top:1px solid #34332b;padding-top:12px;}
+  .credit{font-size:10px;color:#6a6858;margin-top:16px;letter-spacing:.5px;}
+  a{color:#c9975a;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div id="panel">
+    <h1>墨林 · Ink Forest</h1>
+    <p class="sub">Creative Coding Lab #01 — 水墨流场</p>
+
+    <div class="grp">
+      <label>随机种子 Seed</label>
+      <div class="seed">
+        <button onclick="stepSeed(-1)">‹</button>
+        <input type="number" id="seedInput" value="1024" onchange="jumpSeed(this.value)">
+        <button onclick="stepSeed(1)">›</button>
+      </div>
+      <div class="row"><button onclick="randomSeed_()">🎲 随机一张</button></div>
+    </div>
+
+    <div class="grp">
+      <label>笔触密度 Strokes<span class="v" id="v-count">1800</span></label>
+      <input type="range" id="p-count" min="200" max="4000" step="100" value="1800" oninput="setP('count',this.value)">
+    </div>
+    <div class="grp">
+      <label>墨迹长度 Flow<span class="v" id="v-steps">160</span></label>
+      <input type="range" id="p-steps" min="20" max="400" step="10" value="160" oninput="setP('steps',this.value)">
+    </div>
+    <div class="grp">
+      <label>气韵 Turbulence<span class="v" id="v-scale">0.0028</span></label>
+      <input type="range" id="p-scale" min="5" max="60" step="1" value="28" oninput="setP('scale',this.value)">
+    </div>
+    <div class="grp">
+      <label>墨色浓淡 Ink weight<span class="v" id="v-alpha">13</span></label>
+      <input type="range" id="p-alpha" min="2" max="30" step="1" value="13" oninput="setP('alpha',this.value)">
+    </div>
+    <div class="grp">
+      <label>飞白 Dry brush<span class="v" id="v-dry">0.18</span></label>
+      <input type="range" id="p-dry" min="0" max="60" step="1" value="18" oninput="setP('dry',this.value)">
+    </div>
+
+    <div class="grp">
+      <label>纸色 Paper</label>
+      <div class="swatches" id="papers"></div>
+    </div>
+
+    <div class="grp">
+      <div class="row">
+        <button class="primary" onclick="regen()">↻ 重新生成</button>
+        <button onclick="savePNG()">⤓ 存图</button>
+      </div>
+    </div>
+
+    <p class="hint">🖱️ 在画面上<strong>按住拖动</strong> = 用毛笔往流场里注墨，笔速越快墨越浓。松开后墨迹会顺着"气韵"继续流淌。</p>
+    <p class="credit">© Creative Coding Lab · p5.js · 同一颗种子永远画出同一幅画</p>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   墨林 Ink Forest — 水墨流场 / ink-wash flow field
+   哲学：墨分五色。笔触是沿 Perlin 噪声场流动的粒子，
+   墨迹层层叠加成浓淡枯润。同一颗种子 → 同一幅画。
+   ============================================================ */
+
+const PAPERS = [
+  { name:'宣纸', bg:'#efe7d6', ink:'#171310' },
+  { name:'仿古', bg:'#e6d8bd', ink:'#231a12' },
+  { name:'冷灰', bg:'#e3e6e4', ink:'#14181a' },
+  { name:'墨底', bg:'#1a1814', ink:'#e9e2d0' },
+];
+
+let P = {
+  seed: 1024,
+  count: 1800,   // 笔触数
+  steps: 160,    // 每条墨迹的流动步数
+  scaleUI: 28,   // 噪声尺度(UI 值, 越大越湍)
+  alpha: 13,     // 单步墨色 alpha
+  dry: 18,       // 飞白概率(0-60 -> 0-0.6)
+  paper: 0,
+};
+
+let needsRedraw = true;
+
+function setup(){
+  const s = Math.min(window.innerWidth-360, window.innerHeight-48, 900);
+  const c = createCanvas(Math.max(s,360), Math.max(s,360));
+  c.parent('stage');
+  pixelDensity(2);
+  buildPapers();
+  render();
+}
+
+function render(){
+  randomSeed(P.seed);
+  noiseSeed(P.seed);
+  const pal = PAPERS[P.paper];
+  background(pal.bg);
+
+  const scale = map(P.scaleUI, 5, 60, 0.0012, 0.006);
+  document.getElementById('v-scale').textContent = scale.toFixed(4);
+
+  const inkC = color(pal.ink);
+  const ir=red(inkC), ig=green(inkC), ib=blue(inkC);
+  const dryP = P.dry/100;
+  const bigScale = scale * 0.42;          // 低频：控制"墨往哪聚"的构图场
+  const dOff = random(1000);              // 每颗种子换一张构图
+
+  // 低频密度场：决定哪里是浓墨山峦、哪里留白成雾
+  const density = (x,y)=>{
+    let d = noise(x*bigScale+dOff, y*bigScale+dOff);
+    d = constrain(map(d, 0.34, 0.64, 0, 1), 0, 1);   // 拉开对比：留白 + 集中的浓处
+    return pow(d, 1.5);                                // 幂次 -> 墨更聚，但保留中间调
+  };
+
+  // 主流场：笔触沿噪声场流淌，墨色由密度场调制，层层叠成浓淡枯润
+  for(let i=0;i<P.count;i++){
+    // 拒绝采样：让起笔偏向"该有墨"的地方，构图自然成形
+    let x, y, tries=0;
+    do { x=random(width); y=random(height); tries++; }
+    while(density(x,y) < random()*0.9 && tries<8);
+
+    const inkVar = random(0.4,1.0);
+    let px=x, py=y;
+    for(let s=0;s<P.steps;s++){
+      const n = noise(x*scale, y*scale, i*0.0007);
+      const ang = n * TWO_PI * 2.4;
+      x += cos(ang)*1.4;
+      y += sin(ang)*1.4;
+      if(x<0||x>width||y<0||y>height) break;
+      const dens = density(x,y);
+      if(dens < 0.03) break;                          // 流入留白区就收笔
+      if(random() > dryP){
+        const a = P.alpha * inkVar * (0.5+dens*1.15) * (1 - s/P.steps*0.3);
+        stroke(ir,ig,ib, a);
+        strokeWeight(map(inkVar*dens, 0, 1, 0.5, 2.4));
+        line(px,py,x,y);
+      }
+      px=x; py=y;
+    }
+  }
+
+  // 点睛浓墨：落在密度最高处，制造焦点(受种子控制)
+  const dots = floor(random(3,6));
+  for(let d=0;d<dots;d++){
+    let cx,cy,t=0;
+    do{ cx=random(width*0.15,width*0.85); cy=random(height*0.15,height*0.85); t++; }
+    while(density(cx,cy)<0.55 && t<20);
+    const spread = width*random(0.015,0.035);
+    for(let k=0;k<700;k++){
+      const rr=abs(randomGaussian())*spread;
+      const aa=random(TWO_PI);
+      stroke(ir,ig,ib, 10);
+      point(cx+cos(aa)*rr, cy+sin(aa)*rr);
+    }
+  }
+  needsRedraw=false;
+}
+
+/* ---- 交互：鼠标当毛笔，往流场里注墨 ---- */
+function mouseDragged(){
+  if(mouseX<0||mouseX>width||mouseY<0||mouseY>height) return;
+  const pal = PAPERS[P.paper];
+  const inkC = color(pal.ink);
+  const spd = dist(mouseX,mouseY,pmouseX,pmouseY);
+  const scale = map(P.scaleUI,5,60,0.0012,0.006);
+  // 从笔尖甩出一束顺流的墨
+  const n = 6 + floor(spd*0.6);
+  for(let i=0;i<n;i++){
+    let x=mouseX+random(-6,6), y=mouseY+random(-6,6);
+    let px=x,py=y;
+    for(let s=0;s<40;s++){
+      const ang = noise(x*scale,y*scale,i)*TWO_PI*2.2;
+      x+=cos(ang); y+=sin(ang);
+      stroke(red(inkC),green(inkC),blue(inkC), min(4+spd*0.4,22));
+      strokeWeight(map(min(spd,40),0,40,0.6,2.2));
+      line(px,py,x,y); px=x; py=y;
+    }
+  }
+}
+
+/* ---------------- UI ---------------- */
+function buildPapers(){
+  const wrap=document.getElementById('papers'); wrap.innerHTML='';
+  PAPERS.forEach((p,idx)=>{
+    const d=document.createElement('div');
+    d.className='sw'+(idx===P.paper?' on':'');
+    d.style.background=p.bg; d.title=p.name;
+    d.onclick=()=>{P.paper=idx;buildPapers();render();};
+    wrap.appendChild(d);
+  });
+}
+function setP(k,v){
+  v=parseFloat(v);
+  if(k==='count'){P.count=v;document.getElementById('v-count').textContent=v;}
+  if(k==='steps'){P.steps=v;document.getElementById('v-steps').textContent=v;}
+  if(k==='scale'){P.scaleUI=v;}
+  if(k==='alpha'){P.alpha=v;document.getElementById('v-alpha').textContent=v;}
+  if(k==='dry'){P.dry=v;document.getElementById('v-dry').textContent=(v/100).toFixed(2);}
+  render();
+}
+function stepSeed(d){ P.seed=Math.max(0,P.seed+d); document.getElementById('seedInput').value=P.seed; render(); }
+function jumpSeed(v){ P.seed=Math.max(0,parseInt(v)||0); render(); }
+function randomSeed_(){ P.seed=Math.floor(Math.random()*99999); document.getElementById('seedInput').value=P.seed; render(); }
+function regen(){ render(); }
+function savePNG(){ saveCanvas('ink-forest-seed'+P.seed,'png'); }
+
+window.addEventListener('resize',()=>{
+  const s=Math.min(window.innerWidth-360,window.innerHeight-48,900);
+  resizeCanvas(Math.max(s,360),Math.max(s,360)); render();
+});
+</script>
+</body>
+</html>

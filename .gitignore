@@ -1,0 +1,15 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# node (若之后用打包工具)
+node_modules/
+dist/
+
+# 导出的临时成品（想版本管理就删掉这几行）
+*.mp4
+*.mov
+exports/
