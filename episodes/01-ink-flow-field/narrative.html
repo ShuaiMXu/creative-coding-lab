@@ -97,8 +97,13 @@
         <button onclick="savePNG()">⤓ 存图</button>
       </div>
     </div>
+    <div class="grp">
+      <div class="row">
+        <button id="recBtn" onclick="toggleRec()" style="flex:1">⏺ 录屏</button>
+      </div>
+    </div>
 
-    <p class="hint">墨 · 先散作<strong>墨林</strong>，随气韵游走（浓淡枯湿的写意）→ 成 · 满纸墨迹<strong>聚拢归位</strong>，整首《鹿柴》渐渐清晰 → 驻 · 诗成，清晰凝驻 → 风 · 一阵风<strong>吹散</strong>回墨林，季相流转，再聚成诗。<br>🖱️ 在画面上<strong>拖动</strong>＝拨墨，把那一片墨搅散。</p>
+    <p class="hint">墨 · 先散作<strong>墨林</strong>，随气韵游走（浓淡枯湿的写意）→ 成 · 满纸墨迹<strong>聚拢归位</strong>，整首《鹿柴》渐渐清晰 → 驻 · 诗成，清晰凝驻 → 风 · 一阵风<strong>吹散</strong>回墨林，季相流转，再聚成诗。<br>🖱️ 在画面上<strong>拖动</strong>＝拨墨，把那一片墨搅散。<br>⏺ <strong>录屏</strong>＝把画布录成 .webm 视频（可用剪辑软件 / ffmpeg 转 mp4）；想要竖屏就把浏览器窗口调窄再录。</p>
     <p class="credit">© Creative Coding Lab · p5.js · 同一堆墨 · 聚成字 · 散成林</p>
   </div>
 </div>
@@ -568,6 +573,31 @@ function mouseDragged(){
 /* ---------------- UI ---------------- */
 function lab(k,txt){ document.getElementById('lab-'+k).textContent=txt; }
 function rollSeed(){ P.seed=Math.floor(Math.random()*99999); const el=document.getElementById('seedInput'); if(el) el.value=P.seed; }  // 每首诗随机一颗种子
+
+/* ---- 录屏：把画布录成 webm ---- */
+let mediaRec=null, recChunks=[];
+function toggleRec(){
+  const btn=document.getElementById('recBtn');
+  if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
+  const cv=document.querySelector('#stage canvas');
+  if(!cv || !cv.captureStream || typeof MediaRecorder==='undefined'){ alert('当前浏览器不支持录屏，请用 Chrome/Edge。'); return; }
+  const stream=cv.captureStream(60);
+  let mime='video/webm;codecs=vp9';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
+  recChunks=[];
+  mediaRec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:16000000});
+  mediaRec.ondataavailable=e=>{ if(e.data && e.data.size>0) recChunks.push(e.data); };
+  mediaRec.onstop=()=>{
+    const blob=new Blob(recChunks,{type:'video/webm'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='ink-poem-'+P.seed+'.webm'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    btn.textContent='⏺ 录屏'; btn.style.background=''; btn.style.color='';
+  };
+  mediaRec.start();
+  btn.textContent='■ 停止并保存'; btn.style.background='#8a2b2b'; btn.style.color='#fff';
+}
 function gustNow(){ startGust(true); }
 function forceNext(){ rollSeed(); startVerse((verse+1)%POEMS.length, false); }
 function stepSeed(d){ P.seed=Math.max(0,P.seed+d); seedInput.value=P.seed; restart(); }
