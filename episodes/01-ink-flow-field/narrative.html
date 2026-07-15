@@ -468,6 +468,7 @@ function draw(){
 
   if(phase!=='wind' && P.auto && t>HOLD_END && !gust.active) startGust(true);
   if(!gust.active) phase = t<DRIFT_MS ? 'drift' : (t<GATHER_END ? 'gather' : 'hold');
+  if(phase==='gather' && prevPhase!=='gather' && !gust.active) startGatherPhrase();               // 承：聚拢拨弦铺垫
   if(phase==='hold' && prevPhase!=='hold' && !gust.active) playChime(PENTA[verse%PENTA.length]);  // 成诗：一声磬
   prevPhase=phase;
 
@@ -632,6 +633,26 @@ function playChime(freq){                       // 成诗：磬/古琴，一声�
     g.gain.exponentialRampToValueAtTime(0.0008, t+2.6);
     o.connect(g); g.connect(masterGain); o.start(t); o.stop(t+2.8);
   });
+}
+const GUQIN=[196,220,261.63,293.66,329.63,392,440,523.25];   // 五声音阶（拨弦用）
+function playPluck(freq, tOff, amp){             // 古琴拨弦：三角波 + 泛音，轻起快落
+  if(!audioCtx || audioMuted) return;
+  const t=audioCtx.currentTime+tOff;
+  const o=audioCtx.createOscillator(); o.type='triangle'; o.frequency.value=freq;
+  const o2=audioCtx.createOscillator(); o2.type='sine'; o2.frequency.value=freq*2;
+  const g2=audioCtx.createGain(); g2.gain.value=0.28; o2.connect(g2);
+  const g=audioCtx.createGain(); g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(0.085*amp, t+0.006);
+  g.gain.exponentialRampToValueAtTime(0.0006, t+1.05);
+  const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1900;
+  o.connect(g); g2.connect(g); g.connect(lp); lp.connect(masterGain);
+  o.start(t); o.stop(t+1.2); o2.start(t); o2.stop(t+1.2);
+}
+function startGatherPhrase(){                    // 承：聚拢时三声上行拨弦，铺垫成诗
+  if(!audioCtx || audioMuted) return;
+  const i=verse % (GUQIN.length-2);
+  const notes=[GUQIN[i], GUQIN[i+1], GUQIN[i+2]];
+  notes.forEach((f,k)=> playPluck(f, 0.2 + k*0.5, 1 - k*0.12));
 }
 function toggleAudio(){
   audioMuted=!document.getElementById('audioChk').checked;
